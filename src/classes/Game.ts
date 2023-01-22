@@ -1,5 +1,4 @@
 import * as Discord from "discord.js";
-import { generateSlug } from "random-word-slugs";
 import Lobby from "./Lobby";
 import { WordSelector, WordPair } from "./WordSelector";
 
@@ -136,7 +135,9 @@ export default class Game {
                                 dmc.send(playersList);
 
                                 const msgfilternum = (msg: Discord.Message) => {
-                                    if(!isNaN(parseInt(msg.content)) && parseInt(msg.content) >= 1 && parseInt(msg.content) <= this.players.length){
+                                    if(!isNaN(parseInt(msg.content)) &&
+                                        parseInt(msg.content) >= 1 &&
+                                        parseInt(msg.content) <= this.players.length){
                                         return true;
                                     }
         
@@ -185,7 +186,45 @@ export default class Game {
             }
     }
 
-    EndGame(){
+    private async CollectVotes() : Promise<Map<Discord.User, number>>{
+
+        let votes = new Map<Discord.User, number>();
+
+        let playersList = ""
+
+        let i = 1
+        const playerListings = this.allPlayers.map(async (player) => {
+            playersList += `${i++}: ` + player.tag + ", ";
+            votes.set(player, 0);
+        });
+
+        await Promise.all(playerListings);
+
+        const msgfilternum = (msg: Discord.Message) => {
+            return !isNaN(parseInt(msg.content)) && 
+                    parseInt(msg.content) >= 1 &&
+                    parseInt(msg.content) < i;
+        }
+
+        const voteCollection = this.allPlayers.map(async (player) => {
+            const dmc = await player.createDM();
+
+            dmc.send(`Vote for your selection for the minority:\n${playersList}`)
+            
+            await dmc.awaitMessages( { max: 1, filter: msgfilternum })
+                .then((msg) =>{
+                    const votedPlayer = this.allPlayers[parseInt(msg.at(0)!.content) - 1];
+                    votes.set(votedPlayer, votes.get(votedPlayer)!+1);
+                });
+        });
+
+        await Promise.all(voteCollection);
+
+        return votes;
+
+    }
+
+    async EndGame(){
 
         if(this.gameMaster !== this.gameMaster.client.user){
             this.gameMaster.createDM().then((dmc) => {
@@ -193,64 +232,26 @@ export default class Game {
             });
         }
 
+        const votes = await this.CollectVotes();
 
-        let votes = new Map<Discord.User, number>();
-
-        let playersList = ""
-
-
-        let i = 1
-        this.allPlayers.forEach(player => {
-            playersList += `${i++}: ` + player.tag + ", ";
-            votes.set(player, 0);
-        });
-
-        let voteCount = 0;
-
-        this.allPlayers.forEach(player => {
-            player.createDM().then((dmc) => {
-                dmc.send(`Vote your selection for the minority:
-                ${playersList}`);
-
-                const msgfilternum = (msg: Discord.Message) => {
-                    return !isNaN(parseInt(msg.content)) && 
-                            parseInt(msg.content) >= 1 &&
-                            parseInt(msg.content) < i;
-                }
-
-                return dmc.awaitMessages( { max: 1, filter: msgfilternum } ).then((msg) : Promise<boolean> => {
-                    let votedPlayer = this.allPlayers[parseInt(msg.at(0)!.content)-1];
-                    votes.set(votedPlayer, votes.get(votedPlayer)!+1);
-                    ++voteCount;
-                    return new Promise((res, rej) => { res(voteCount === votes.size); })
-                });
-            }).then((end : boolean) => {
-                if(end){
-
-                    let votedMsg = "";
+        let votedMsg = "";
     
-                    votes.forEach((voted,plyr) => {
-                        votedMsg += `${plyr.tag}: ${voted} vote(s).\n`;
-                    });
-
-                    if(this.gameMaster !== this.gameMaster.client.user){
-                        this.gameMaster.createDM().then((dmc) =>{
-
-                            dmc.send(votedMsg);
-                        });
-                    }
-                    else{
-                        this.allPlayers.forEach(player => {
-                            player.createDM().then((dmc) => {
-                                dmc.send(votedMsg);
-                            });
-                        });
-                    }
-                }
-            })
+        votes.forEach((voted,plyr) => {
+            votedMsg += `${plyr.tag}: ${voted} vote(s).\n`;
         });
 
-
+        if(this.gameMaster !== this.gameMaster.client.user){
+            this.gameMaster.createDM().then((dmc) =>{
+                dmc.send(votedMsg);
+            });
+        }
+        else{
+            this.allPlayers.forEach(player => {
+                player.createDM().then((dmc) => {
+                    dmc.send(votedMsg);
+                });
+            });
+        }
 
     }
 
