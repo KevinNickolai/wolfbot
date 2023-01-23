@@ -6,7 +6,8 @@ module.exports = {
     aliases: ['l'],
     description: "Leave a Wolf Lobby.",
     args: false,
+    guildOnly: true,
     execute(message: Discord.Message, args: string[]){
-        (message.client as CommandClient).lobby.leave(message.author);
+        (message.client as CommandClient).lobbies.get(message.guild!)!.leave(message.author);
     }
 }

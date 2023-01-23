@@ -19,6 +19,9 @@ module.exports = (client: CommandClient, message: Discord.Message) => {
         return message.reply(`You must provide arguments for the ${commandName} command.`);
     }
 
+    if(command.guildOnly && !message.guild){
+        return message.reply(`${commandName} is a Discord Server command only. Please use ${commandName} in a server with the bot user.`);
+    }
 
     try{
         command.execute(message, args);

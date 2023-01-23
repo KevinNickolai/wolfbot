@@ -7,12 +7,13 @@ export default class Lobby {
     public gameMasterQueue : Discord.User[];
 
     public playerQueue : Discord.User[];
-    client: CommandClient;
 
-    constructor(client : CommandClient){
+    guild: Discord.Guild;
+
+    constructor(guild : Discord.Guild){
         this.gameMasterQueue = new Array(0);
         this.playerQueue = new Array(0);
-        this.client = client;
+        this.guild = guild;
     }
 
     join(user: Discord.User){
@@ -57,7 +58,7 @@ export default class Lobby {
      */
     DecideGameMaster(): Discord.User {
         if(this.gameMasterQueue.length === 0){
-            return this.client.user!;
+            return this.guild.client.user!;
         }
 
         let gm = this.gameMasterQueue[Math.floor(Math.random() * this.gameMasterQueue.length)];

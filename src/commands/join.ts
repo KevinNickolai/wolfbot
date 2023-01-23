@@ -6,14 +6,14 @@ module.exports = {
     aliases: ['j'],
     description: "Join a game of Wolf",
     args: false,
+    guildOnly: true,
     execute(message: Discord.Message, args: string[]){
-
         if(!args.length || args[0] !== 'gm'){
-            (message.client as CommandClient).lobby.join(message.author);
+            (message.client as CommandClient).lobbies.get(message.guild!)!.join(message.author);
             message.react('🐺')
         }
         else{
-            (message.client as CommandClient).lobby.joinGM(message.author);
+            (message.client as CommandClient).lobbies.get(message.guild!)!.joinGM(message.author);
             message.react('🎲');
         }
     }

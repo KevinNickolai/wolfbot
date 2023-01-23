@@ -6,10 +6,14 @@ module.exports = {
     aliases: ['s'],
     description: "Spectate a Wolf Lobby.",
     args: false,
+    guildOnly: true,
     execute(message: Discord.Message, args: string[]){
-        let game = (message.client as CommandClient).game;
+        let game = (message.client as CommandClient).games.get(message.guild!);
         let gamePlayers = game?.allPlayers;
-        if(gamePlayers !== undefined && gamePlayers.find( u => u === message.author) === undefined){
+
+        if(typeof game !== 'undefined' && 
+        typeof gamePlayers !== 'undefined' && 
+        typeof gamePlayers.find( u => u === message.author) === 'undefined'){
             message.author.createDM().then((dmc) => {
                 let playerList = "";
 

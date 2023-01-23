@@ -1,4 +1,5 @@
 import * as Discord from "discord.js";
+import CommandClient from "./CommandClient";
 import Lobby from "./Lobby";
 import { WordSelector, WordPair } from "./WordSelector";
 
@@ -56,7 +57,7 @@ export default class Game {
         /*
         * Request words from the GM or generate them from the bot
         */
-        if(this.gameMaster !== this.lobby.client.user){
+        if(this.gameMaster !== this.lobby.guild.client.user){
             return this.gameMaster.createDM()
                 .then(async (dmc) =>  { 
 
@@ -66,7 +67,7 @@ export default class Game {
                 })
                 .then(async (msg) =>{
                     if(msg.at(0)?.content.trim().toLowerCase() === "-r"){
-                        let words = await this.lobby.client.database?.GetUserWordPair(this.gameMaster.id);
+                        let words = await (this.lobby.guild.client as CommandClient).database?.GetUserWordPair(this.gameMaster.id);
 
                         if(typeof words !== 'undefined') {
                             this.words = words;
@@ -88,7 +89,7 @@ export default class Game {
 
             const playerUserIds = this.players.map<string>((user) => user.id );
 
-            return this.lobby.client.database?.QueryForWordPair(playerUserIds)
+            return (this.lobby.guild.client as CommandClient).database?.QueryForWordPair(playerUserIds)
                     .then((words) => { this.words = words??WordSelector.RandomWords(); })!;
         }
     }
@@ -123,7 +124,7 @@ export default class Game {
 
         await this.InitializeWords()
             .then(() => {
-                if(this.gameMaster !== this.lobby.client.user){
+                if(this.gameMaster !== this.lobby.guild.client.user){
                     this.gameMaster.createDM()
                         .then(async (dmc) => {
                             dmc.send("Select Minority? (Y/N)");
@@ -158,32 +159,36 @@ export default class Game {
                 }
             });
 
-            
-            this.players.forEach((majorityPlayer) => {
-                majorityPlayer.createDM().then((dmc) => {
-                    dmc.send(`Your word is ${this.words.majorityWord}.`);
-                });
+        
+        this.players.forEach((majorityPlayer) => {
+            majorityPlayer.createDM().then((dmc) => {
+                dmc.send(`Your word is ${this.words.majorityWord}.`);
             });
+        });
 
-            this.minority!.createDM().then((dmc) => {
-                dmc.send(`Your word is ${this.words.minorityWord}.`)
-            });
+        this.minority!.createDM().then((dmc) => {
+            dmc.send(`Your word is ${this.words.minorityWord}.`)
+        });
+        
+        timeout = setTimeout(() => {
+            this.EndGame();
+        }, 10*60*1000);
+
+        
+        if(this.gameMaster !== this.lobby.guild.client.user){
+
+            this.gameMaster.createDM().then((dmc) =>{
+                dmc.send(`The minority player is ${this.minority?.tag} with ${this.words.minorityWord}. Starting 10 minute clock... (Stop the clock and end the game by typing 'end')`);
             
-            timeout = setTimeout(() => {
-                this.EndGame();
-            }, 10*60*1000);
+                dmc.awaitMessages( { max: 1, filter: msgFilterEnd, time: 9*60*1000  } ).then(() => {
 
-            if(this.gameMaster !== this.lobby.client.user){
-
-                this.gameMaster.createDM().then((dmc) =>{
-                    dmc.send(`The minority player is ${this.minority?.tag} with ${this.words.minorityWord}. Starting 10 minute clock... (Stop the clock and end the game by typing 'end')`);
-                
-                    dmc.awaitMessages( { max: 1, filter: msgFilterEnd } ).then(() => {
+                    if(typeof timeout !== 'undefined'){
                         clearTimeout(timeout);
                         this.EndGame();
-                    });
+                    }
                 });
-            }
+            });
+        }
     }
 
     private async CollectVotes() : Promise<Map<Discord.User, number>>{
@@ -234,23 +239,58 @@ export default class Game {
 
         const votes = await this.CollectVotes();
 
-        let votedMsg = "";
-    
-        votes.forEach((voted,plyr) => {
-            votedMsg += `${plyr.tag}: ${voted} vote(s).\n`;
-        });
+        let votedMsg = ""
+
+        let majorityWin = votes.get(this.minority!)! > Math.floor(this.allPlayers.length / 2);
+
+        for(const [player, voteCount] of votes){
+            votedMsg += `${player.tag}: ${voteCount} vote(s).\n`;
+        }
+
+        if(majorityWin){
+            votedMsg += `${this.minority?.tag} the minority has been discovered!
+            Input if they guess the correct majority word. (Y/N)`;
+        } 
+        else{
+            votedMsg += `${this.minority?.tag} the minority has won!`;
+        }
 
         if(this.gameMaster !== this.gameMaster.client.user){
-            this.gameMaster.createDM().then((dmc) =>{
-                dmc.send(votedMsg);
+            this.gameMaster.createDM().then(async (dmc) =>{
+                await dmc.send(votedMsg);
+
+                if(majorityWin){
+                    majorityWin = await dmc.awaitMessages({ max: 1, filter: msgFilterYN })
+                    .then( msg => msg.at(0)!.content !== 'Y' );
+                }
+
+                // Write game win
             });
         }
         else{
-            this.allPlayers.forEach(player => {
-                player.createDM().then((dmc) => {
-                    dmc.send(votedMsg);
-                });
+
+            let minorityWinVotes = 0;
+
+            let winVotes = this.allPlayers.map(async (player) => {
+                let dmc = await player.createDM();
+
+                dmc.send(votedMsg);
+
+                if(majorityWin && 
+                   await dmc.awaitMessages({ max: 1, filter: msgFilterYN })
+                            .then( msg => msg.at(0)!.content === 'Y' )){
+                    ++minorityWinVotes
+                }
+
+                return;
             });
+
+            await Promise.all(winVotes);
+
+            majorityWin = minorityWinVotes >= Math.floor(this.players.length / 2);
+            
+
+            // Write game win
         }
 
     }

@@ -2,6 +2,7 @@ import * as Discord from "discord.js"
 import CommandClient from "./classes/CommandClient";
 import fs from 'fs';
 import { promisify } from 'util';
+import Lobby from "./classes/Lobby";
 
 const readdirAsync  = promisify(fs.readdir);
 
@@ -10,6 +11,11 @@ const client = new CommandClient({ intents: [Discord.Intents.FLAGS.GUILDS,
       Discord.Intents.FLAGS.DIRECT_MESSAGES], 
     partials: [ "CHANNEL" ] /// Required for DMs
     });
+
+client.guilds.fetch()
+        .then((guilds) => {
+            guilds.map( oAuth2G => oAuth2G.fetch().then( guild => client.lobbies.set(guild, new Lobby(guild)) ));
+        });
 
 /*
 * Read in commands into the CommandClient

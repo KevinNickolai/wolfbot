@@ -5,11 +5,7 @@ import { DBManager } from "./classes/database/DBManager";
 main();
 
 async function main() {
-
-    const db = new DBManager();
-
-    Promise.all([client.login(config.botToken), db.init()]).then(() => {
-        client.database = db;
+    Promise.all([client.login(config.botToken), client.database.init()]).then(() => {
         console.log("Logged in!");
     });
 }

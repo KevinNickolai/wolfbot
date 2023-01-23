@@ -11,11 +11,25 @@ module.exports = {
     args: false,
     execute(message: Discord.Message, args: string[]){
 
-        if(args.shift() === "-r"){
-            (message.client as CommandClient).database?.SubmitWordPair(message.author.id, WordSelector.RandomWords()).then((validSubmission) => {
-                message.reply(validSubmission ? "Random submission accepted!" : "Invalid word submission.");
-             });
+        args = args.filter( arg => arg.toLowerCase() === "-g" || arg.toLowerCase() === "-r");
+
+        let allowForBotUse = false;
+
+        if(args.includes("-g")){
+            args = args.filter( arg => arg !== "-g");
+            allowForBotUse = true;
+        }
+
+        if(args.includes("-r")){
+            args.filter( arg => arg !== "-r");
+
+            (message.client as CommandClient).database?.SubmitWordPair(message.author.id, WordSelector.RandomWords(), allowForBotUse)
+                .then((validSubmission) => {
+                    message.reply(validSubmission ? "Random submission accepted!" : "Invalid word submission.");
+                });
+
             return;
+
         }
 
         message.reply("Please give me 2 words formatted as: 'Majority Word | Minority Word'")
@@ -25,7 +39,7 @@ module.exports = {
                     .then(async (msg) => {
                         const words = WordSelector.ExtractWords(msg.at(0)?.content!)!;
 
-                        const validSubmission = await (message.client as CommandClient).database?.SubmitWordPair(message.author.id, words);
+                        const validSubmission = await (message.client as CommandClient).database?.SubmitWordPair(message.author.id, words, allowForBotUse);
                         
                         if(validSubmission){
                             msg.at(0)?.reply("Valid word submission accepted!");

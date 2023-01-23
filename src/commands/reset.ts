@@ -6,7 +6,8 @@ module.exports = {
     aliases: ['r'],
     description: "Reset a Wolf Lobby.",
     args: false,
+    guildOnly: true,
     execute(message: Discord.Message, args: string[]){
-        (message.client as CommandClient).game = undefined;
+        (message.client as CommandClient).games.delete(message.guild!);
     }
 }
