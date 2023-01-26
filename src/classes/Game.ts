@@ -3,6 +3,11 @@ import CommandClient from "./CommandClient";
 import Lobby from "./Lobby";
 import { WordSelector, WordPair } from "./WordSelector";
 
+export enum Roles {
+    Minority = "minority",
+    Majority = "majority"
+}
+
 /* TODO:
 * 6 players MAX for alternative gamemode where everyone gets a unique word.
 * EVERYONE option for alternative game mode where @ end of game 
@@ -53,11 +58,12 @@ export default class Game {
      * Initialize majority/minority words for the current game
      * @returns {Promise<void>} upon completion of the initialization of the majority/minority words
      */
-    private async InitializeWords() : Promise<void>{
+    private async InitializeWords(gameId: number) : Promise<void>{
         /*
         * Request words from the GM or generate them from the bot
         */
         if(this.gameMaster !== this.lobby.guild.client.user){
+
             return this.gameMaster.createDM()
                 .then(async (dmc) =>  { 
 
@@ -67,7 +73,7 @@ export default class Game {
                 })
                 .then(async (msg) =>{
                     if(msg.at(0)?.content.trim().toLowerCase() === "-r"){
-                        let words = await (this.lobby.guild.client as CommandClient).database?.GetUserWordPair(this.gameMaster.id);
+                        let words = await (this.lobby.guild.client as CommandClient).database?.GetUserWordPair(this.gameMaster.id, gameId);
 
                         if(typeof words !== 'undefined') {
                             this.words = words;
@@ -78,8 +84,12 @@ export default class Game {
                         let resubmission = await msg.at(0)?.channel.awaitMessages( { max: 1, filter: msgFilterWordSelectionOnly })
 
                         this.words = WordSelector.ExtractWords(resubmission?.at(0)?.content!)!;
+
+                        (this.lobby.guild.client as CommandClient).database.CreateSpontaneousWordPair(this.gameMaster.id, this.words, gameId);
                     }else{
                         this.words = WordSelector.ExtractWords(msg.at(0)?.content!)!;
+                        
+                        (this.lobby.guild.client as CommandClient).database.CreateSpontaneousWordPair(this.gameMaster.id, this.words, gameId);
                     }
 
                     return;
@@ -89,14 +99,12 @@ export default class Game {
 
             const playerUserIds = this.players.map<string>((user) => user.id );
 
-            return (this.lobby.guild.client as CommandClient).database?.QueryForWordPair(playerUserIds)
+            return (this.lobby.guild.client as CommandClient).database?.QueryForWordPair(playerUserIds, gameId)
                     .then((words) => { this.words = words??WordSelector.RandomWords(); })!;
         }
     }
 
     private async Run() {
-        
-        let decidedGM: Promise<boolean> = new Promise((res, rej) => res(true));
 
         let timeout : NodeJS.Timeout;
 
@@ -106,7 +114,6 @@ export default class Game {
         this.players.forEach(element => {
             playersList += `${i++}: ` + element.tag + ", ";
         });
-
 
         let playerDMs = this.players.map( async (usr: Discord.User) : Promise<void> => {
             const completeUser = await usr.fetch();
@@ -120,9 +127,11 @@ export default class Game {
             return;
         });
 
+        const gameId = await (this.lobby.guild.client as CommandClient).database.GenerateGame(this.lobby.guild.id, this.gameMaster.id);
+
         this.allPlayers = this.players;
 
-        await this.InitializeWords()
+        await this.InitializeWords(gameId)
             .then(() => {
                 if(this.gameMaster !== this.lobby.guild.client.user){
                     this.gameMaster.createDM()
@@ -160,18 +169,22 @@ export default class Game {
             });
 
         
-        this.players.forEach((majorityPlayer) => {
-            majorityPlayer.createDM().then((dmc) => {
-                dmc.send(`Your word is ${this.words.majorityWord}.`);
-            });
+        let userIdToRoles = new Map<string, Roles>();
+
+        this.players.map(async (majorityPlayer) => {
+
+            userIdToRoles.set(majorityPlayer.id, Roles.Majority);
+
+            return majorityPlayer.createDM().then((dmc) => dmc.send(`Your word is ${this.words.majorityWord}.`));
         });
 
-        this.minority!.createDM().then((dmc) => {
-            dmc.send(`Your word is ${this.words.minorityWord}.`)
-        });
+        userIdToRoles.set(this.minority!.id, Roles.Minority);
+        this.minority!.createDM().then((dmc) => dmc.send(`Your word is ${this.words.minorityWord}.`));
         
+        (this.lobby.guild.client as CommandClient).database.SetGameUsers(gameId, userIdToRoles);
+
         timeout = setTimeout(() => {
-            this.EndGame();
+            this.EndGame(gameId);
         }, 10*60*1000);
 
         
@@ -184,7 +197,7 @@ export default class Game {
 
                     if(typeof timeout !== 'undefined'){
                         clearTimeout(timeout);
-                        this.EndGame();
+                        this.EndGame(gameId);
                     }
                 });
             });
@@ -229,7 +242,7 @@ export default class Game {
 
     }
 
-    async EndGame(){
+    async EndGame(gameId: number){
 
         if(this.gameMaster !== this.gameMaster.client.user){
             this.gameMaster.createDM().then((dmc) => {
@@ -265,6 +278,16 @@ export default class Game {
                 }
 
                 // Write game win
+                if(majorityWin){
+                    await (this.lobby.guild.client as CommandClient).database.SetWinners(gameId, this.players.map(p => p.id));
+                }
+                else{
+                    await (this.lobby.guild.client as CommandClient).database.SetWinners(gameId, [ this.minority!.id ])
+                }
+                
+                this.allPlayers.map(usr => (this.lobby.guild.client as CommandClient).listeningForResponses.delete(usr));
+                
+                (this.lobby.guild.client as CommandClient).listeningForResponses.delete(this.gameMaster);
             });
         }
         else{
@@ -291,6 +314,18 @@ export default class Game {
             
 
             // Write game win
+
+            if(majorityWin){
+                await (this.lobby.guild.client as CommandClient).database.SetWinners(gameId, this.players.map(p => p.id));
+            }
+            else{
+                await (this.lobby.guild.client as CommandClient).database.SetWinners(gameId, [ this.minority!.id ])
+            }
+
+            
+            this.allPlayers.map(usr => (this.lobby.guild.client as CommandClient).listeningForResponses.delete(usr));
+
+            (this.lobby.guild.client as CommandClient).listeningForResponses.delete(this.gameMaster);
         }
 
     }

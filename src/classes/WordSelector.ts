@@ -1,4 +1,4 @@
-import { generateSlug } from "random-word-slugs";
+import { generateSlug, totalUniqueSlugs } from "random-word-slugs";
 
 export enum Adjectives {
     Appearence = "appearence",
@@ -20,7 +20,7 @@ export enum Nouns {
     Education = "education",
     Family = "family",
     Food = "food",
-    Health = "health",
+    Health = "health", // Health only has totalUniqueSlugs(1) === 1, so not exactly useful here
     Media = "media",
     People = "people",
     Place = "place",
@@ -53,8 +53,8 @@ export class WordSelector{
             let splitWords = input.split('|');
 
             valid = splitWords.length === 2 &&
-                    splitWords[0].trim().length > 0 &&
-                    splitWords[1].trim().length > 0 &&
+                    splitWords[0].trim().length > 0 && splitWords[0].trim().length <= 64 &&
+                    splitWords[1].trim().length > 0 && splitWords[1].trim().length <= 64 &&
                     splitWords[0].trim().toLowerCase() !== splitWords[1].trim().toLowerCase();
         }
 
@@ -65,9 +65,9 @@ export class WordSelector{
         let splitWords = input.split('|');
 
         if(splitWords.length === 2 &&
-           splitWords[0].trim().length > 0 &&
-           splitWords[1].trim().length > 0 &&
-           splitWords[0]){
+           splitWords[0].trim().length > 0 && splitWords[0].trim().length <= 64 &&
+           splitWords[1].trim().length > 0 && splitWords[1].trim().length <= 64 &&
+           splitWords[0].trim().toLowerCase() !== splitWords[1].trim().toLowerCase()){
 
             return {
                         majorityWord: splitWords[0].trim().toLowerCase(), 
@@ -83,8 +83,6 @@ export class WordSelector{
 
         let speechPart = Math.floor(Math.random() * 2) ? Categories.Noun : Categories.Adjective;
 
-
-
         if(matchSpeechPart){
                 
             /*
@@ -97,18 +95,13 @@ export class WordSelector{
             const categoryPerSpeechPart = speechPart === Categories.Noun ? Nouns : Adjectives;
             const categoryElementCount = Object.keys(categoryPerSpeechPart).length;
 
-            let randomCategory = Object.values(categoryPerSpeechPart).at(Math.floor(Math.random() * categoryElementCount))!;
+            let randomCategory;
 
-            console.log(speechPart);
-            console.log(categoryPerSpeechPart);
-            console.log(categoryElementCount);
-            console.log(randomCategory);
-
-            console.log({ partsOfSpeech: [ speechPart ], categories: { [speechPart]: [ randomCategory ] }});
+            do{
+                randomCategory = Object.values(categoryPerSpeechPart).at(Math.floor(Math.random() * categoryElementCount))!;
+            } while(totalUniqueSlugs(1, { partsOfSpeech: [ speechPart ], categories: { [speechPart]: [ randomCategory ] }}) === 1)
 
             const firstWord = generateSlug(1, { partsOfSpeech: [ speechPart ], categories: { [speechPart]: [ randomCategory ] }});
-
-            console.log(firstWord);
 
             if(matchCategory){
 
@@ -121,7 +114,10 @@ export class WordSelector{
                 return { majorityWord: firstWord, minorityWord: secondWord };
             }
 
-            randomCategory = Object.values(categoryPerSpeechPart).at(Math.floor(Math.random() * categoryElementCount))!;
+            do{
+                randomCategory = Object.values(categoryPerSpeechPart).at(Math.floor(Math.random() * categoryElementCount))!;
+            } while(totalUniqueSlugs(1, { partsOfSpeech: [ speechPart ], categories: { [speechPart]: [ randomCategory ] }}) === 1)
+
             let secondWord;
             
             do {
@@ -139,7 +135,6 @@ export class WordSelector{
             do {
                 secondWord = generateSlug(1);
             } while(secondWord === firstWord);
-            
     
     
             return { majorityWord: firstWord, minorityWord: secondWord };

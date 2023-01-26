@@ -8,7 +8,9 @@ const readdirAsync  = promisify(fs.readdir);
 
 const client = new CommandClient({ intents: [Discord.Intents.FLAGS.GUILDS,
      Discord.Intents.FLAGS.GUILD_MESSAGES,
-      Discord.Intents.FLAGS.DIRECT_MESSAGES], 
+      Discord.Intents.FLAGS.DIRECT_MESSAGES,
+    Discord.Intents.FLAGS.GUILD_MEMBERS,
+Discord.Intents.FLAGS.GUILD_PRESENCES], 
     partials: [ "CHANNEL" ] /// Required for DMs
     });
 
@@ -26,8 +28,7 @@ readdirAsync('./dist/commands')
         const commandFiles = files.filter(file => file.endsWith('.js'));
 
         commandFiles.forEach(file => {
-            
-            const command = require(`../dist/commands/${file}`);
+            const command = require(`../dist/commands/${file}`).default;
 
             client.commands.set(command.name, command);
         });

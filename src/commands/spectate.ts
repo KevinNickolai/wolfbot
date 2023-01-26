@@ -1,7 +1,8 @@
 import * as Discord from "discord.js";
 import CommandClient from "../classes/CommandClient";
+import { ICommand } from "../interfaces/ICommand";
 
-module.exports = {
+export default {
     name: 'spectate',
     aliases: ['s'],
     description: "Spectate a Wolf Lobby.",
@@ -25,4 +26,4 @@ module.exports = {
             });
         }
     }
-}
+} as ICommand;

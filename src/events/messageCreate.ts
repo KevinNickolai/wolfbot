@@ -6,6 +6,10 @@ module.exports = (client: CommandClient, message: Discord.Message) => {
 
     if(!message.content.startsWith(prefix) || message.author.bot) return;
 
+    if(client.listeningForResponses.has(message.author)){
+        return message.reply(`You are in game or in another command currently. Please finish those tasks first.`);
+    }
+
     const args = message.content.slice(prefix.length).split(/ +/);
     const commandName = args.shift()!.toLowerCase();
 
@@ -21,6 +25,10 @@ module.exports = (client: CommandClient, message: Discord.Message) => {
 
     if(command.guildOnly && !message.guild){
         return message.reply(`${commandName} is a Discord Server command only. Please use ${commandName} in a server with the bot user.`);
+    }
+
+    if(command.dmOnly && message.guild){
+        return message.reply(`${commandName} is a Direct Message command only. Please DM ${commandName} to the bot user.`);
     }
 
     try{

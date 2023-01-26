@@ -8,5 +8,4 @@ module.exports = (client: CommandClient) => {
 
     console.log(`Starting game across ${client.guilds.cache.size} servers.`);
 
-
 }
