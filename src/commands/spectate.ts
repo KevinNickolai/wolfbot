@@ -5,7 +5,7 @@ import { ICommand } from "../interfaces/ICommand";
 export default {
     name: 'spectate',
     aliases: ['s'],
-    description: "Spectate a Wolf Lobby.",
+    description: "Spectate a Word Wolf Lobby.",
     args: false,
     guildOnly: true,
     execute(message: Discord.Message, args: string[]){

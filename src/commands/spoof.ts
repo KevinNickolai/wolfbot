@@ -19,7 +19,7 @@ export default {
         const will = args.includes("-w");
         const gm = will ? message.guild?.ownerId! : message.author.id;
 
-        (message.client as CommandClient).database.GenerateGame(message.guildId!, gm)
+        (message.client as CommandClient).database.GenerateGame(message.guildId!, gm, true)
             .then(async (gameId) => {
 
                 const wordsAvailable = (await (message.client as CommandClient).database.QueryForWordPair([], gameId))??(await (message.client as CommandClient).database.GetUserWordPair(gm, gameId));
@@ -33,7 +33,7 @@ export default {
 
                 const userCount = Math.floor(Math.random() * 4) + 3 - (will ? 1 : 0);
 
-                let availablePool = message.guild?.members.cache.filter( u => u.id !== gm);
+                let availablePool = message.guild?.members.cache.filter(u => u.id !== gm);
 
                 if(will){
                     members.set(message.author.id, message.guild?.members.cache.get(message.author.id)!);

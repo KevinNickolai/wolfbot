@@ -18,7 +18,10 @@ function msgFilterWordSelectionOnly(msg : Discord.Message) : boolean {
 }
 
 function msgFilterWordSubmission(msg : Discord.Message) : boolean {
-    return msg.content.trim().toLowerCase() === "-r" || msgFilterWordSelectionOnly(msg);
+    return msg.content.trim().toLowerCase() === "-r" ||
+            msg.content.trim().toLowerCase() === "-ra" ||
+            msg.content.trim().toLowerCase() === "-m" ||
+            msgFilterWordSelectionOnly(msg);
 }
 
 function msgFilterYN(msg : Discord.Message) : boolean {
@@ -67,30 +70,37 @@ export default class Game {
             return this.gameMaster.createDM()
                 .then(async (dmc) =>  { 
 
-                    await dmc.send("You're the GM! Please give me 2 words formatted as: 'Majority Word | Minority Word', or send '-r' to select your word pairs randomly from the database!");
+                    await dmc.send("You're the GM! Please response one of the following:\n'Majority Word | Minority Word'\n'-m' to pick from your pool of words randomly\n'-r' to pick from similar words randomly\n'-ra' to pick two random words from the same word category");
 
                     return dmc.awaitMessages( { max: 1, filter: msgFilterWordSubmission } );
                 })
                 .then(async (msg) =>{
-                    if(msg.at(0)?.content.trim().toLowerCase() === "-r"){
-                        let words = await (this.lobby.guild.client as CommandClient).database?.GetUserWordPair(this.gameMaster.id, gameId);
+
+                    const passedMessage = msg.at(0)?.content.trim().toLowerCase();
+
+                    if(passedMessage === "-m"){
+                        const words = await (this.lobby.guild.client as CommandClient).database.GetUserWordPair(this.gameMaster.id, gameId);
 
                         if(typeof words !== 'undefined') {
                             this.words = words;
-                            return;
+                        }else{
+                            msg.at(0)?.reply("You have no submitted words! Please give me 2 words formatted as: 'Majority Word | Minority Word'.");
+
+                            const resubmission = await msg.at(0)?.channel.awaitMessages( { max: 1, filter: msgFilterWordSelectionOnly })
+    
+                            this.words = WordSelector.ExtractWords(resubmission?.at(0)?.content!)!;
                         }
-                        msg.at(0)?.reply("You have no submitted words! Please give me 2 words formatted as: 'Majority Word | Minority Word'.");
 
-                        let resubmission = await msg.at(0)?.channel.awaitMessages( { max: 1, filter: msgFilterWordSelectionOnly })
+                        return;
 
-                        this.words = WordSelector.ExtractWords(resubmission?.at(0)?.content!)!;
-
-                        (this.lobby.guild.client as CommandClient).database.CreateSpontaneousWordPair(this.gameMaster.id, this.words, gameId);
-                    }else{
-                        this.words = WordSelector.ExtractWords(msg.at(0)?.content!)!;
-                        
-                        (this.lobby.guild.client as CommandClient).database.CreateSpontaneousWordPair(this.gameMaster.id, this.words, gameId);
+                    }else if(passedMessage?.startsWith("-r")){
+                        this.words = WordSelector.RandomWords(true, !passedMessage.includes("a"));
                     }
+                    else{
+                        this.words = WordSelector.ExtractWords(msg.at(0)?.content!)!;
+                    }
+
+                    (this.lobby.guild.client as CommandClient).database.CreateSpontaneousWordPair(this.gameMaster.id, this.words, gameId);
 
                     return;
                 });
@@ -99,7 +109,7 @@ export default class Game {
 
             const playerUserIds = this.players.map<string>((user) => user.id );
 
-            return (this.lobby.guild.client as CommandClient).database?.QueryForWordPair(playerUserIds, gameId)
+            return (this.lobby.guild.client as CommandClient).database.QueryForWordPair(playerUserIds, gameId)
                     .then((words) => { this.words = words??WordSelector.RandomWords(); })!;
         }
     }
@@ -191,7 +201,7 @@ export default class Game {
         if(this.gameMaster !== this.lobby.guild.client.user){
 
             this.gameMaster.createDM().then((dmc) =>{
-                dmc.send(`The minority player is ${this.minority?.tag} with ${this.words.minorityWord}. Starting 10 minute clock... (Stop the clock and end the game by typing 'end')`);
+                dmc.send(`The minority player is ${this.minority?.tag} with ${this.words.minorityWord}. The majority word is ${this.words.majorityWord}. Starting 10 minute clock... (Stop the clock and end the game by typing 'end')`);
             
                 dmc.awaitMessages( { max: 1, filter: msgFilterEnd, time: 9*60*1000  } ).then(() => {
 
@@ -294,7 +304,7 @@ export default class Game {
 
             let minorityWinVotes = 0;
 
-            let winVotes = this.allPlayers.map(async (player) => {
+            const winVotes = this.allPlayers.map(async (player) => {
                 let dmc = await player.createDM();
 
                 dmc.send(votedMsg);

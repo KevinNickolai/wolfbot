@@ -8,12 +8,16 @@ export default {
     description: "View your Word Wolf stats.",
     args: false,
     guildOnly: false,
-    flags: ["-t"],
+    flags: ["-t", "-s"],
     execute(message: Discord.Message, args: string[]){
         
+        const userTarget = message.mentions.users.at(0)??message.author;
+
         const tabular = args.includes("-t");
 
-        (message.client as CommandClient).database.GetStats(message.author.id)
+        const spoofed = args.includes("-s");
+
+        (message.client as CommandClient).database.GetStats(userTarget.id, spoofed)
             .then((stats) => {
 
                 const winsColumnPadding = Math.max(
@@ -42,17 +46,9 @@ export default {
                 `[MINORITY]: Wins: ${stats.minorityGames.wins}\tGP: ${stats.minorityGames.gamesPlayed}\tWin%: ${Math.floor(stats.minorityGames.winPercentage*100)}%\n` +
                 `[ALLROLES]: Wins: ${stats.allGames.wins}\tGP: ${stats.allGames.gamesPlayed}\tWin%: ${Math.floor(stats.allGames.winPercentage*100)}%`);
 
-                message.reply("```Your Stats:\n" +
+                message.reply(`\`\`\`${userTarget.tag} Stats:\n` +
                 `[WORDPAIR]: GMGP: ${stats.gamesGM}\tSubmitted: ${stats.wordPairsSubmitted}\n` +
                 statLayout + "```");
-
-
-                // todo: fix formatting and have tabular display of stats, flag argument?
-
-                
-
-
             });
-
     }
 } as ICommand;

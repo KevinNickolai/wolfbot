@@ -1,7 +1,7 @@
 import { generateSlug, totalUniqueSlugs } from "random-word-slugs";
 
 export enum Adjectives {
-    Appearence = "appearence",
+    Appearance = "appearance",
     Color = "color",
     Condition = "condition",
     Personality = "personality",

@@ -1,5 +1,6 @@
 import * as Discord from "discord.js";
 import CommandClient from "../classes/CommandClient";
+import { HISTORY_GAME_COUNT } from "../classes/database/DBManager";
 import { ICommand } from "../interfaces/ICommand";
 import { IGameHistory } from "../interfaces/IHistory";
 
@@ -9,8 +10,12 @@ export default {
     description: "View your Word Wolf stats.",
     args: false,
     guildOnly: false,
+    flags: ["-s"],
     execute(message: Discord.Message, args: string[]){
-        (message.client as CommandClient).database.GetHistory(message.author.id)
+
+        const spoofed = args.includes("-s");
+
+        (message.client as CommandClient).database.GetHistory(message.author.id, HISTORY_GAME_COUNT, spoofed)
             .then((history) => {
                 let msgHistory = `Game History for <@${message.author.id}>:\n`;
 
@@ -22,6 +27,6 @@ export default {
                 message.reply({content: msgHistory, allowedMentions: {
                     "parse": []
                 }});
-            })
+            });
     }
 } as ICommand;

@@ -10,5 +10,6 @@ export default {
     guildOnly: true,
     execute(message: Discord.Message, args: string[]){
         (message.client as CommandClient).lobbies.get(message.guild!)!.leave(message.author);
+        message.react('🍃');
     }
 } as ICommand;
