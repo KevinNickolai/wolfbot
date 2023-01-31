@@ -2,7 +2,6 @@ import * as Discord from "discord.js";
 import CommandClient from "../classes/CommandClient";
 import { HISTORY_GAME_COUNT } from "../classes/database/DBManager";
 import { ICommand } from "../interfaces/ICommand";
-import { IGameHistory } from "../interfaces/IHistory";
 
 export default {
     name: 'history',

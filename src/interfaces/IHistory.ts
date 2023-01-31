@@ -1,4 +1,3 @@
-import * as Discord from "discord.js";
 import { Roles } from "../classes/Game";
 import { WordPair } from "../classes/WordSelector";
 

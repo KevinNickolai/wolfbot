@@ -1,5 +1,4 @@
 import * as Discord from "discord.js";
-import CommandClient from "./CommandClient";
 
 export default class Lobby {
 

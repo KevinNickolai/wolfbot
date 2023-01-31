@@ -14,15 +14,14 @@ export default {
 
         args = args.filter(arg => this.flags?.includes(arg));
 
-
-
         const will = args.includes("-w");
         const gm = will ? message.guild?.ownerId! : message.author.id;
 
         (message.client as CommandClient).database.GenerateGame(message.guildId!, gm, true)
             .then(async (gameId) => {
 
-                const wordsAvailable = (await (message.client as CommandClient).database.QueryForWordPair([], gameId))??(await (message.client as CommandClient).database.GetUserWordPair(gm, gameId));
+                const wordsAvailable = (await (message.client as CommandClient).database.QueryForWordPair([], gameId))??
+                                       (await (message.client as CommandClient).database.GetUserWordPair(gm, gameId));
 
                 if(typeof wordsAvailable === 'undefined'){
                     return message.reply("There aren't any available words to play with!");

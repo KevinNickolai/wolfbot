@@ -1,5 +1,8 @@
 import { generateSlug, totalUniqueSlugs } from "random-word-slugs";
 
+/**
+ * Adjective Categorization or Sub-category
+ */
 export enum Adjectives {
     Appearance = "appearance",
     Color = "color",
@@ -14,6 +17,9 @@ export enum Adjectives {
     Touch = "touch"
 }
 
+/**
+ * Noun Categorization or Sub-category
+ */
 export enum Nouns {
     Animal = "animals",
     Business = "business",
@@ -34,18 +40,33 @@ export enum Nouns {
     Transportation = "transportation"
 }
 
+/**
+ * Part of Speech word categories
+ */
 export enum Categories {
     Noun = "noun",
     Adjective = "adjective"
 }
 
+/**
+ * Structure that defines a word pair of minority/majority
+ */
 export interface WordPair {
     minorityWord: string;
     majorityWord: string;
 }
 
-export class WordSelector{
+/**
+ * Abstraction on static class WordSelector
+ * Validates message input for word pairings and generates random word pairings 
+ */
+export abstract class WordSelector {
 
+    /**
+     * Validate word selection input message
+     * @param input message to parse for two valid word values
+     * @returns {boolean} true if valid word input message string, false otherwise.
+     */
     static Validate(input: string) : boolean {
         let valid = input.includes('|');
 
@@ -61,13 +82,16 @@ export class WordSelector{
         return valid;
     }
 
+    /**
+     * Extract two words from a string input if the string message is in a valid format.
+     * @param input message to parse for two valid word values
+     * @returns {WordPair | undefined} WordPair if valid word pairing, undefined otherwise.
+     */
     static ExtractWords(input: string) : WordPair | undefined {
-        let splitWords = input.split('|');
 
-        if(splitWords.length === 2 &&
-           splitWords[0].trim().length > 0 && splitWords[0].trim().length <= 64 &&
-           splitWords[1].trim().length > 0 && splitWords[1].trim().length <= 64 &&
-           splitWords[0].trim().toLowerCase() !== splitWords[1].trim().toLowerCase()){
+        if(this.Validate(input)){
+
+            const splitWords = input.split('|');
 
             return {
                         majorityWord: splitWords[0].trim().toLowerCase(), 
@@ -79,6 +103,12 @@ export class WordSelector{
         return undefined;
     }
 
+    /**
+     * Generate a random word pair
+     * @param matchSpeechPart flag indicating if the Part of Speech (noun, adjective) should be matched between the two words
+     * @param matchCategory flag indicating if the Sub-category of the Part of Speech should be matched between the two words
+     * @returns {WordPair} randomly generated from the specific flags
+     */
     static RandomWords(matchSpeechPart: boolean = true, matchCategory: boolean = matchSpeechPart) : WordPair {
 
         let speechPart = Math.floor(Math.random() * 2) ? Categories.Noun : Categories.Adjective;
@@ -97,6 +127,10 @@ export class WordSelector{
 
             let randomCategory;
 
+            /* 
+            * Generate random category while the totalUniqueSlugs that the PoS and category 
+            * together can generate is only 1, to prevent an infinite loop when selecting the second word
+            */
             do{
                 randomCategory = Object.values(categoryPerSpeechPart).at(Math.floor(Math.random() * categoryElementCount))!;
             } while(totalUniqueSlugs(1, { partsOfSpeech: [ speechPart ], categories: { [speechPart]: [ randomCategory ] }}) === 1)
